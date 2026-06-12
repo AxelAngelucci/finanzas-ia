@@ -1,0 +1,21 @@
+{
+  "name": "finanzas-ia",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "services/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "mobile": "pnpm --filter mobile start",
+    "api": "pnpm --filter api dev",
+    "ai": "cd services/ai && uvicorn main:app --reload --port 8000",
+    "dev": "concurrently \"pnpm api\" \"pnpm ai\"",
+    "db:migrate": "pnpm --filter api prisma migrate dev",
+    "db:generate": "pnpm --filter api prisma generate",
+    "db:studio": "pnpm --filter api prisma studio"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

@@ -1,0 +1,184 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AgentTone {
+  amigable
+  formal
+  estricto
+}
+
+enum Theme {
+  light
+  dark
+  system
+}
+
+enum TransactionType {
+  expense
+  income
+  saving
+}
+
+enum TransactionChannel {
+  app
+  wa_text
+  wa_audio
+}
+
+enum TransactionCategory {
+  Alimentacion
+  Transporte
+  Alquiler
+  Salud
+  Entretenimiento
+  Trabajo
+  Tecnologia
+  Ropa
+  Educacion
+  Ahorro
+  Sueldo
+  Freelance
+  Otros
+}
+
+model User {
+  id                String        @id @default(uuid())
+  email             String?       @unique
+  password_hash     String?
+  name              String?
+  income_monthly    Int           @default(0)
+  wa_phone          String?       @unique
+  wa_verified       Boolean       @default(false)
+  wa_link_token     String?
+  wa_link_token_exp DateTime?
+  agent_tone        AgentTone     @default(amigable)
+  theme             Theme         @default(system)
+  budget_alert_pct  Int           @default(80)
+  rollover_enabled  Boolean       @default(false)
+  onboarding_done   Boolean       @default(false)
+  created_at        DateTime      @default(now())
+  updated_at        DateTime      @updatedAt
+
+  transactions  Transaction[]
+  budgets       Budget[]
+  goals         Goal[]
+  subscriptions Subscription[]
+  commitments   Commitment[]
+  insights      Insight[]
+
+  @@map("users")
+}
+
+model Transaction {
+  id            String              @id @default(uuid())
+  user_id       String
+  amount        Int
+  type          TransactionType
+  description   String              @db.VarChar(120)
+  category      TransactionCategory
+  note          String?             @db.VarChar(500)
+  date          DateTime            @db.Date
+  channel       TransactionChannel  @default(app)
+  raw_text      String?
+  ai_confidence Float?
+  deleted_at    DateTime?
+  created_at    DateTime            @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id, date])
+  @@index([user_id, deleted_at])
+  @@map("transactions")
+}
+
+model Budget {
+  id               String              @id @default(uuid())
+  user_id          String
+  category         TransactionCategory
+  limit_amount     Int
+  month            String              @db.VarChar(7)
+  rollover         Boolean             @default(false)
+  alert_threshold  Int                 @default(80)
+  alert_sent       Boolean             @default(false)
+  created_at       DateTime            @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, category, month])
+  @@map("budgets")
+}
+
+model Goal {
+  id             String    @id @default(uuid())
+  user_id        String
+  name           String    @db.VarChar(60)
+  emoji          String    @db.VarChar(4)
+  target_amount  Int
+  saved_amount   Int       @default(0)
+  target_date    DateTime  @db.Date
+  color          String    @db.VarChar(7)
+  completed_at   DateTime?
+  created_at     DateTime  @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("goals")
+}
+
+model Subscription {
+  id          String    @id @default(uuid())
+  user_id     String
+  name        String
+  amount      Int
+  frequency   String
+  day_of_charge Int
+  next_date   DateTime  @db.Date
+  category    TransactionCategory
+  ignored     Boolean   @default(false)
+  confidence  Float
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("subscriptions")
+}
+
+model Commitment {
+  id                  String    @id @default(uuid())
+  user_id             String
+  name                String    @db.VarChar(80)
+  emoji               String    @default("📅") @db.VarChar(8)
+  amount              Int
+  category            String    @db.VarChar(30)
+  day_of_month        Int
+  installment_current Int?
+  installment_total   Int?
+  last_paid_month     String?   @db.VarChar(7)
+  active              Boolean   @default(true)
+  created_at          DateTime  @default(now())
+  updated_at          DateTime  @updatedAt
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("commitments")
+}
+
+model Insight {
+  id         String   @id @default(uuid())
+  user_id    String
+  content    String
+  week_key   String   @db.VarChar(8)
+  created_at DateTime @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, week_key])
+  @@map("insights")
+}
