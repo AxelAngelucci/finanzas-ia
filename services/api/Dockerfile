@@ -1,19 +1,18 @@
-FROM node:22-alpine AS base
+FROM node:22-alpine AS deps
 WORKDIR /app
-RUN npm install -g pnpm@9
+COPY package.json ./
+RUN npm install
 
-FROM base AS deps
-COPY package.json pnpm-lock.yaml* ./
-RUN pnpm install --frozen-lockfile
-
-FROM base AS builder
+FROM node:22-alpine AS builder
+WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN pnpm prisma generate
-RUN pnpm build
+RUN npx prisma generate
+RUN npm run build
 
-FROM base AS runner
+FROM node:22-alpine AS runner
 ENV NODE_ENV=production
+WORKDIR /app
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/prisma ./prisma
