@@ -11,7 +11,7 @@ from openai import AsyncOpenAI
 from tools import ALL_TOOLS, EXECUTORS
 
 router = APIRouter()
-client = AsyncOpenAI(api_key=os.environ["OPENAI_API_KEY"])
+client = AsyncOpenAI(api_key=os.environ["OPENAI_API_KEY"].strip())
 MODEL = os.environ.get("OPENAI_MODEL", "gpt-4o")
 MAX_ITERATIONS = 6
 

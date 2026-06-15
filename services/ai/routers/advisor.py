@@ -5,7 +5,7 @@ from typing import Optional, List, Dict, Any
 from openai import AsyncOpenAI
 
 router = APIRouter()
-client = AsyncOpenAI(api_key=os.environ["OPENAI_API_KEY"])
+client = AsyncOpenAI(api_key=os.environ["OPENAI_API_KEY"].strip())
 MODEL = os.environ.get("OPENAI_MODEL", "gpt-4o")
 
 TONE_INSTRUCTIONS = {
