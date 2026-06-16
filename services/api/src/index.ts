@@ -43,6 +43,8 @@ app.use(errorHandler);
 
 app.listen(PORT, () => {
   console.log(`[API] Listening on :${PORT} — env: ${process.env.NODE_ENV ?? 'development'}`);
+  const sid = process.env.TWILIO_ACCOUNT_SID;
+  console.log(`[Twilio] SID defined: ${sid !== undefined}, length: ${sid?.length ?? 0}, starts_AC: ${sid?.startsWith('AC')}, repr: ${JSON.stringify(sid?.slice(0, 6))}`);
 });
 
 export default app;
