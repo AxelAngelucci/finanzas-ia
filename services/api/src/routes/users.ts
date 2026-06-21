@@ -36,6 +36,8 @@ router.get('/me', async (req, res, next) => {
         budget_alert_pct: true,
         rollover_enabled: true,
         onboarding_done: true,
+        plan: true,
+        trial_ends_at: true,
         created_at: true,
       },
     });
@@ -89,6 +91,17 @@ router.get('/me/qr-token', async (req, res, next) => {
     const url = `https://wa.me/${waNumber}?text=vincular_${token}`;
 
     res.json({ token, url, expires_at: exp });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/me/revenuecat-id', async (req, res, next) => {
+  try {
+    const userId = req.userId!;
+    const { revenuecat_id } = z.object({ revenuecat_id: z.string().min(1) }).parse(req.body);
+    await prisma.user.update({ where: { id: userId }, data: { revenuecat_id } });
+    res.json({ ok: true });
   } catch (err) {
     next(err);
   }

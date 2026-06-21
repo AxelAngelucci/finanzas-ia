@@ -3,10 +3,12 @@ import { z } from 'zod';
 import { prisma } from '../db/client';
 import { requireAuth } from '../middleware/auth';
 import { requireInternalOrJwt } from '../middleware/internal';
+import { requireActivePlan } from '../middleware/subscription';
 import { createError } from '../middleware/error';
 
 const router: import('express').Router = Router();
 router.use(requireInternalOrJwt);
+router.use(requireActivePlan);
 
 const createSchema = z.object({
   name: z.string().min(1).max(60),

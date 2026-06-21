@@ -9,6 +9,10 @@ import { sendText } from '../lib/twilio';
 
 const router: import('express').Router = Router();
 
+// Must mirror TRIAL_DAYS in routes/whatsapp.ts — same free-tier trial window
+// regardless of which channel the account was created from.
+const TRIAL_DAYS = 2;
+
 const registerSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
@@ -36,6 +40,7 @@ router.post('/register', async (req, res, next) => {
         password_hash,
         name: data.name,
         income_monthly: data.income_monthly ?? 0,
+        trial_ends_at: new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000),
       },
     });
 
@@ -45,7 +50,20 @@ router.post('/register', async (req, res, next) => {
     res.status(201).json({
       access_token: access,
       refresh_token: refresh,
-      user: { id: user.id, email: user.email, name: user.name },
+      user: {
+        id:              user.id,
+        email:           user.email,
+        name:            user.name,
+        agent_tone:      user.agent_tone,
+        theme:           user.theme,
+        onboarding_done: user.onboarding_done,
+        income_monthly:  user.income_monthly,
+        wa_phone:        user.wa_phone,
+        wa_verified:     user.wa_verified,
+        budget_alert_pct: user.budget_alert_pct,
+        plan:            user.plan,
+        created_at:      user.created_at,
+      },
     });
   } catch (err) {
     next(err);
@@ -70,12 +88,18 @@ router.post('/login', async (req, res, next) => {
       access_token: access,
       refresh_token: refresh,
       user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        agent_tone: user.agent_tone,
-        theme: user.theme,
-        onboarding_done: user.onboarding_done,
+        id:               user.id,
+        email:            user.email,
+        name:             user.name,
+        agent_tone:       user.agent_tone,
+        theme:            user.theme,
+        onboarding_done:  user.onboarding_done,
+        income_monthly:   user.income_monthly,
+        wa_phone:         user.wa_phone,
+        wa_verified:      user.wa_verified,
+        budget_alert_pct: user.budget_alert_pct,
+        plan:             user.plan,
+        created_at:       user.created_at,
       },
     });
   } catch (err) {
@@ -152,7 +176,13 @@ router.post('/wa-verify', async (req, res, next) => {
 
     let user = await prisma.user.findFirst({ where: { wa_phone: normalized } });
     if (!user) {
-      user = await prisma.user.create({ data: { wa_phone: normalized, wa_verified: true } });
+      user = await prisma.user.create({
+        data: {
+          wa_phone: normalized,
+          wa_verified: true,
+          trial_ends_at: new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000),
+        },
+      });
     }
 
     const access  = signAccess(user.id);
@@ -162,12 +192,18 @@ router.post('/wa-verify', async (req, res, next) => {
       access_token:  access,
       refresh_token: refresh,
       user: {
-        id:             user.id,
-        email:          user.email,
-        name:           user.name,
-        agent_tone:     user.agent_tone,
-        theme:          user.theme,
-        onboarding_done: user.onboarding_done,
+        id:               user.id,
+        email:            user.email,
+        name:             user.name,
+        agent_tone:       user.agent_tone,
+        theme:            user.theme,
+        onboarding_done:  user.onboarding_done,
+        income_monthly:   user.income_monthly,
+        wa_phone:         user.wa_phone,
+        wa_verified:      user.wa_verified,
+        budget_alert_pct: user.budget_alert_pct,
+        plan:             user.plan,
+        created_at:       user.created_at,
       },
     });
   } catch (err) { next(err); }

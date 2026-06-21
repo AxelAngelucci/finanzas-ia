@@ -4,6 +4,7 @@ import { prisma } from '../db/client';
 import { getUserContext, callAI } from '../lib/aiHelpers';
 import { sendText, downloadMedia } from '../lib/twilio';
 import { redis } from '../lib/redis';
+import { normalizeArgentinePhone } from '../lib/phone';
 
 const router: import('express').Router = Router();
 
@@ -54,14 +55,42 @@ async function transcribeAudio(buffer: Buffer, mimeType: string): Promise<string
 
 // ─── Core message handler ─────────────────────────────────────────────────────
 
+const LANDING_URL = 'https://finanzas-ia.app/suscribite';
+const TRIAL_DAYS  = 2;
+
 async function getOrCreateUser(phone: string) {
   const existing = await prisma.user.findFirst({ where: { wa_phone: phone } });
   if (existing) return { user: existing, isNew: false };
 
+  const trial_ends_at = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
   const user = await prisma.user.create({
-    data: { wa_phone: phone, wa_verified: true },
+    data: { wa_phone: phone, wa_verified: true, trial_ends_at },
   });
   return { user, isNew: true };
+}
+
+async function checkSubscription(user: Awaited<ReturnType<typeof prisma.user.findFirst>> & object, phone: string): Promise<boolean> {
+  if (user.plan === 'active') return true;
+
+  if (user.plan === 'expired') {
+    await sendText(
+      phone,
+      `Tu período de prueba gratuita terminó 🔒\n\nPara seguir usando *Finanzas IA* suscribite acá:\n👉 ${LANDING_URL}\n\n¿Tenés dudas? Respondé este mensaje.`,
+    );
+    return false;
+  }
+
+  // plan === 'free' — check if trial has expired
+  if (user.trial_ends_at && new Date() > user.trial_ends_at) {
+    await prisma.user.update({ where: { id: user.id }, data: { plan: 'expired' } });
+    await sendText(
+      phone,
+      `¡Hola! 👋 Tus 2 días de prueba gratuita terminaron.\n\nPara seguir usando *Finanzas IA* elegí tu plan:\n👉 ${LANDING_URL}\n\n¿Tenés dudas? Respondé este mensaje.`,
+    );
+    return false;
+  }
+
+  return true;
 }
 
 interface ImagePayload { base64: string; mime: string }
@@ -77,10 +106,13 @@ async function handleUserMessage(
   if (isNew) {
     await sendText(
       phone,
-      '¡Hola! Soy *Finanzas IA* 👋\n\nTu cuenta fue creada automáticamente. Ya podés registrar gastos, ingresos y preguntarme lo que quieras sobre tus finanzas.\n\nEjemplo: _"Gasté 1500 en el super"_',
+      '¡Hola! Soy *Finanzas IA* 👋\n\nTu cuenta fue creada automáticamente. Tenés *2 días de prueba gratis* para registrar gastos, ingresos y preguntarme lo que quieras sobre tus finanzas.\n\nEjemplo: _"Gasté 1500 en el super"_',
     );
     return;
   }
+
+  const canContinue = await checkSubscription(user, phone);
+  if (!canContinue) return;
 
   const [history, { tone, context }] = await Promise.all([
     loadHistory(phone),
@@ -112,6 +144,73 @@ async function handleUserMessage(
   ]);
 }
 
+// ─── Account linking ───────────────────────────────────────────────────────────
+
+const CHILD_MODELS = ['transaction', 'budget', 'goal', 'subscription', 'commitment', 'insight'] as const;
+
+async function handleLinkToken(phone: string, token: string): Promise<void> {
+  const user = await prisma.user.findFirst({
+    where: { wa_link_token: token, wa_link_token_exp: { gt: new Date() } },
+  });
+
+  if (!user) {
+    await sendText(phone, 'El código es inválido o expiró. Generá uno nuevo desde la app en Configuración > WhatsApp.');
+    return;
+  }
+
+  // This number may already belong to a "ghost" account auto-created the first
+  // time someone messaged the bot before ever linking from the app. `wa_phone`
+  // is unique, so we must migrate that account's data into the app account
+  // (or reject the link if it's a real, separate account) before updating it.
+  const ghost = await prisma.user.findFirst({ where: { wa_phone: phone } });
+
+  if (ghost && ghost.id !== user.id) {
+    if (ghost.email || ghost.password_hash) {
+      await sendText(
+        phone,
+        'Este número de WhatsApp ya está vinculado a otra cuenta de Finanzas IA. Desvinculalo primero desde esa cuenta para poder usarlo acá.',
+      );
+      return;
+    }
+
+    try {
+      await prisma.$transaction(async (tx) => {
+        for (const model of CHILD_MODELS) {
+          await (tx[model] as { updateMany: (args: unknown) => Promise<unknown> }).updateMany({
+            where: { user_id: ghost.id },
+            data: { user_id: user.id },
+          });
+        }
+        await tx.user.delete({ where: { id: ghost.id } });
+        await tx.user.update({
+          where: { id: user.id },
+          data: { wa_phone: phone, wa_verified: true, wa_link_token: null, wa_link_token_exp: null },
+        });
+      });
+    } catch (err) {
+      console.error('[WhatsApp] Error migrando cuenta fantasma al vincular:', err);
+      await sendText(phone, 'Hubo un error vinculando tu cuenta. Probá de nuevo en unos minutos o contactanos.');
+      return;
+    }
+
+    await sendText(
+      phone,
+      '✅ *¡Cuenta vinculada!*\n\nLos gastos que ya habías registrado por WhatsApp ahora están en tu cuenta de la app. Escribime un gasto, un ingreso, o preguntame lo que quieras sobre tus finanzas.\n\nEjemplo: _"Gasté 1500 en el super"_',
+    );
+    return;
+  }
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data:  { wa_phone: phone, wa_verified: true, wa_link_token: null, wa_link_token_exp: null },
+  });
+
+  await sendText(
+    phone,
+    '✅ *¡Cuenta vinculada!*\n\nYa podés usar Finanzas IA por WhatsApp. Escribime un gasto, un ingreso, o preguntame lo que quieras sobre tus finanzas.\n\nEjemplo: _"Gasté 1500 en el super"_',
+  );
+}
+
 // ─── GET /webhook/whatsapp — health check ────────────────────────────────────
 
 router.get('/', (_req: Request, res: Response) => {
@@ -139,8 +238,7 @@ async function processWebhook(body: Record<string, string>): Promise<void> {
   const from     = body['From'] ?? '';
   const numMedia = parseInt(body['NumMedia'] ?? '0', 10);
   const rawPhone = from.replace('whatsapp:', '');
-  // Twilio omits the "9" mobile prefix for Argentine numbers (+5411... → +54911...)
-  const phone = rawPhone.replace(/^\+54(?!9)(\d+)$/, '+549$1');
+  const phone = normalizeArgentinePhone(rawPhone);
 
   if (!phone) return;
 
@@ -170,26 +268,7 @@ async function processWebhook(body: Record<string, string>): Promise<void> {
   if (!text) return;
 
   if (text.toLowerCase().startsWith('vincular_')) {
-    // Account linking flow
-    const token = text.replace(/^vincular_/i, '').trim();
-    const user  = await prisma.user.findFirst({
-      where: { wa_link_token: token, wa_link_token_exp: { gt: new Date() } },
-    });
-
-    if (!user) {
-      await sendText(phone, 'El código es inválido o expiró. Generá uno nuevo desde la app en Configuración > WhatsApp.');
-      return;
-    }
-
-    await prisma.user.update({
-      where: { id: user.id },
-      data:  { wa_phone: phone, wa_verified: true, wa_link_token: null, wa_link_token_exp: null },
-    });
-
-    await sendText(
-      phone,
-      '✅ *¡Cuenta vinculada!*\n\nYa podés usar Finanzas IA por WhatsApp. Escribime un gasto, un ingreso, o preguntame lo que quieras sobre tus finanzas.\n\nEjemplo: _"Gasté 1500 en el super"_',
-    );
+    await handleLinkToken(phone, text.replace(/^vincular_/i, '').trim());
     return;
   }
 

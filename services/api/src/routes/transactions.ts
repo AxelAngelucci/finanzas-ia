@@ -3,11 +3,13 @@ import { z } from 'zod';
 import { prisma } from '../db/client';
 import { requireAuth } from '../middleware/auth';
 import { requireInternalOrJwt } from '../middleware/internal';
+import { requireActivePlan } from '../middleware/subscription';
 import { createError } from '../middleware/error';
 import { TransactionCategory, TransactionType, TransactionChannel } from '@prisma/client';
 
 const router: import('express').Router = Router();
 router.use(requireInternalOrJwt);
+router.use(requireActivePlan);
 
 const CATEGORIES = Object.values(TransactionCategory);
 

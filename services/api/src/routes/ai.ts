@@ -3,12 +3,14 @@ import { z } from 'zod';
 import multer from 'multer';
 import { prisma } from '../db/client';
 import { requireInternalOrJwt } from '../middleware/internal';
+import { requireActivePlan } from '../middleware/subscription';
 import { createError } from '../middleware/error';
 import { TransactionCategory, TransactionType, TransactionChannel } from '@prisma/client';
 import { callAI, getUserContext } from '../lib/aiHelpers';
 
 const router: import('express').Router = Router();
 router.use(requireInternalOrJwt);
+router.use(requireActivePlan);
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
 

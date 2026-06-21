@@ -2,11 +2,13 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../db/client';
 import { requireInternalOrJwt } from '../middleware/internal';
+import { requireActivePlan } from '../middleware/subscription';
 import { createError } from '../middleware/error';
 import { TransactionType, TransactionChannel, TransactionCategory } from '@prisma/client';
 
 const router: import('express').Router = Router();
 router.use(requireInternalOrJwt);
+router.use(requireActivePlan);
 
 const COMMITMENT_CATEGORIES = ['Vivienda', 'Credito', 'Seguros', 'Servicios', 'Transporte', 'Otros'] as const;
 
