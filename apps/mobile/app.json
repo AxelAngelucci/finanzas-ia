@@ -1,13 +1,15 @@
 {
   "expo": {
-    "name": "Finanzas IA",
+    "name": "Finia",
     "slug": "finanzas-ia",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "scheme": "finanzas-ia",
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.finanzasai.app",
@@ -25,12 +27,12 @@
       },
       "package": "com.finanzasai.app",
       "permissions": [
-        "USE_FINGERPRINT",
-        "USE_BIOMETRIC",
-        "CAMERA",
-        "READ_MEDIA_IMAGES",
-        "READ_MEDIA_VIDEO",
-        "RECORD_AUDIO"
+        "android.permission.USE_FINGERPRINT",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.CAMERA",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
@@ -60,12 +62,16 @@
       "typedRoutes": true
     },
     "extra": {
+      "apiUrl": "https://beautiful-optimism-production.up.railway.app/v1",
       "router": {
         "origin": false
       },
       "eas": {
-        "projectId": "your-project-id"
-      }
-    }
+        "projectId": "c5c3d14c-837e-4429-b0f4-08869ff16277"
+      },
+      "rcIosKey": "appl_tBcHeOLNtWHKQSblXhRWxOlOOsj",
+      "rcAndroidKey": "goog_pmdHxcUzPxFGUVGpyueNbyJuWLW"
+    },
+    "owner": "axeljesusangelucci"
   }
 }

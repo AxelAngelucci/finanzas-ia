@@ -77,7 +77,7 @@ export default function WelcomeScreen() {
         style={styles.waBtn}
         activeOpacity={0.7}
       >
-        <Text style={styles.waBtnText}>💬  Ya uso Finanzas IA por WhatsApp</Text>
+        <Text style={styles.waBtnText}>💬  Ya uso Finia por WhatsApp</Text>
       </TouchableOpacity>
     </LinearGradient>
   );

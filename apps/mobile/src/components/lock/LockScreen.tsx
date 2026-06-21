@@ -157,7 +157,7 @@ export function LockScreen() {
 
       {/* Greeting */}
       <Text style={styles.greeting}>
-        {firstName ? `Hola, ${firstName}` : 'Finanzas IA'}
+        {firstName ? `Hola, ${firstName}` : 'Finia'}
       </Text>
 
       {/* App icon */}

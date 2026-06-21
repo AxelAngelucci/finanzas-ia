@@ -78,7 +78,7 @@ export default function IncomeScreen() {
       }
       const incomeCentavos = incomeNum * 100;
       await setMonthlyIncome(incomeCentavos);
-      try { await api.patch('/users/me', { monthly_income: incomeCentavos }); } catch { /* non-blocking */ }
+      try { await api.put('/users/me', { income_monthly: incomeCentavos }); } catch { /* non-blocking */ }
       router.push('/(onboarding)/whatsapp');
     } catch (err: unknown) {
       console.error('[income] register error:', err);

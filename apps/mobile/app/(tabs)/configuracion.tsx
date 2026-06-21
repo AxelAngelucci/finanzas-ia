@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   TextInput,
   StyleSheet,
   Linking,
+  AppState,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -79,12 +80,25 @@ export default function ConfiguracionScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
-  const { user, logout, setUser } = useAuth();
+  const { user, logout, setUser, refreshProfile } = useAuth();
   const settings = useSettingsStore();
+
+  // Linking WhatsApp happens outside the app — refetch when we come back
+  // from the background so "Vinculado" reflects the real state.
+  const appState = useRef(AppState.currentState);
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (next) => {
+      if (appState.current.match(/inactive|background/) && next === 'active') {
+        refreshProfile();
+      }
+      appState.current = next;
+    });
+    return () => sub.remove();
+  }, [refreshProfile]);
 
   const [isLoggingOut,   setIsLoggingOut]   = useState(false);
   const [editingIncome,  setEditingIncome]   = useState(false);
-  const [incomeText,     setIncomeText]      = useState(user?.monthly_income ? String(user.monthly_income / 100) : '');
+  const [incomeText,     setIncomeText]      = useState(user?.income_monthly ? String(user.income_monthly / 100) : '');
   const [isSavingIncome, setIsSavingIncome]  = useState(false);
 
   const handleLogout = () => {
@@ -125,27 +139,20 @@ export default function ConfiguracionScreen() {
     }
   };
 
+  const handleOpenTerms = () => Linking.openURL('https://finanzas-ia.app/terms');
+  const handleOpenPrivacy = () => Linking.openURL('https://finanzas-ia.app/privacy');
+
   const handleUnlinkWhatsApp = () => {
     Alert.alert('Desvincular WhatsApp', '¿Estás seguro? Perderás la capacidad de registrar gastos por WhatsApp.', [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Desvincular', style: 'destructive', onPress: async () => {
-        try { await api.delete('/users/me/whatsapp'); if (user) setUser({ ...user, whatsapp_phone: null }); }
+        try { await api.delete('/users/me/wa'); if (user) setUser({ ...user, wa_phone: null }); }
         catch { Alert.alert('Error', 'No se pudo desvincular WhatsApp.'); }
       }},
     ]);
   };
 
-  const handleExportData = () => {
-    Alert.alert('Exportar datos', 'Te enviaremos un archivo CSV con todos tus movimientos al email registrado.', [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Exportar', onPress: async () => {
-        try { await api.post('/users/me/export'); Alert.alert('Listo', 'Te enviamos el archivo a tu email.'); }
-        catch { Alert.alert('Error', 'No se pudo iniciar la exportación.'); }
-      }},
-    ]);
-  };
-
-  return (
+return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
       <ScrollView
         contentContainerStyle={{ padding: 20, paddingBottom: 140 }}
@@ -262,14 +269,14 @@ export default function ConfiguracionScreen() {
                 autoFocus
               />
               <Button size="sm" onPress={handleSaveIncome} loading={isSavingIncome}>Guardar</Button>
-              <Button size="sm" variant="ghost" onPress={() => { setEditingIncome(false); setIncomeText(user?.monthly_income ? String(user.monthly_income / 100) : ''); }}>
+              <Button size="sm" variant="ghost" onPress={() => { setEditingIncome(false); setIncomeText(user?.income_monthly ? String(user.income_monthly / 100) : ''); }}>
                 Cancelar
               </Button>
             </View>
           ) : (
             <TouchableOpacity onPress={() => setEditingIncome(true)} style={styles.incomeDisplay}>
               <Text style={styles.incomeValue}>
-                {user?.monthly_income ? formatARS(user.monthly_income) : 'No configurado'}
+                {user?.income_monthly ? formatARS(user.income_monthly) : 'No configurado'}
               </Text>
               <Ionicons name="pencil-outline" size={16} color={colors.text3} />
             </TouchableOpacity>
@@ -279,7 +286,7 @@ export default function ConfiguracionScreen() {
         {/* Integrations */}
         <Text style={styles.sectionLabel}>INTEGRACIONES</Text>
         <TouchableOpacity
-          onPress={user?.whatsapp_phone ? handleUnlinkWhatsApp : handleLinkWhatsApp}
+          onPress={user?.wa_phone ? handleUnlinkWhatsApp : handleLinkWhatsApp}
           activeOpacity={0.8}
           style={[styles.surfaceCard, { padding: 16, borderWidth: 2, borderColor: '#25D366' }]}
         >
@@ -289,7 +296,7 @@ export default function ConfiguracionScreen() {
             </View>
             <View>
               <Text style={{ fontWeight: '600', fontSize: 15, color: colors.text }}>WhatsApp</Text>
-              {user?.whatsapp_phone ? (
+              {user?.wa_phone ? (
                 <Text style={{ fontSize: 12, color: colors.success, fontWeight: '500' }}>● Conectado</Text>
               ) : (
                 <Text style={{ fontSize: 12, color: colors.text3 }}>No vinculado</Text>
@@ -297,23 +304,27 @@ export default function ConfiguracionScreen() {
             </View>
           </View>
           <Text style={{ fontSize: 13, color: colors.text2, lineHeight: 20 }}>
-            {user?.whatsapp_phone
-              ? `${user.whatsapp_phone} vinculado. Los mensajes se procesan automáticamente vía IA.`
+            {user?.wa_phone
+              ? `${user.wa_phone} vinculado. Los mensajes se procesan automáticamente vía IA.`
               : 'Vincular WhatsApp para registrar gastos con un mensaje o nota de voz.'}
           </Text>
         </TouchableOpacity>
 
-        {/* Data */}
-        <Text style={styles.sectionLabel}>MIS DATOS</Text>
+        {/* Legal */}
+        <Text style={styles.sectionLabel}>LEGAL</Text>
         <View style={styles.surfaceCard}>
-          <TouchableOpacity onPress={handleExportData} style={styles.row}>
-            <View style={styles.rowIcon}>
-              <Ionicons name="download-outline" size={17} color={colors.primary} />
+          <TouchableOpacity onPress={handleOpenTerms} style={[styles.row, styles.rowBorder]}>
+            <View style={[styles.rowIcon, { backgroundColor: colors.primaryLight }]}>
+              <Ionicons name="document-text-outline" size={17} color={colors.primary} />
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.rowLabel}>Exportar datos</Text>
-              <Text style={styles.rowSub}>CSV con todos tus movimientos</Text>
+            <Text style={styles.rowLabel}>Términos y condiciones</Text>
+            <Ionicons name="chevron-forward" size={16} color={colors.text3} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleOpenPrivacy} style={styles.row}>
+            <View style={[styles.rowIcon, { backgroundColor: colors.primaryLight }]}>
+              <Ionicons name="shield-checkmark-outline" size={17} color={colors.primary} />
             </View>
+            <Text style={styles.rowLabel}>Política de privacidad</Text>
             <Ionicons name="chevron-forward" size={16} color={colors.text3} />
           </TouchableOpacity>
         </View>
@@ -329,7 +340,7 @@ export default function ConfiguracionScreen() {
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.version}>Finanzas IA v1.0.0</Text>
+        <Text style={styles.version}>Finia v1.0.0</Text>
       </ScrollView>
     </View>
   );

@@ -104,7 +104,7 @@ export default function WaLoginScreen() {
             <>
               <Text style={styles.title}>Accedé con WhatsApp</Text>
               <Text style={styles.subtitle}>
-                Si ya usás Finanzas IA por WhatsApp, te mandamos un código para entrar.
+                Si ya usás Finia por WhatsApp, te mandamos un código para entrar.
               </Text>
 
               <View style={styles.fieldCard}>

@@ -43,11 +43,14 @@ export interface User {
   agent_tone: 'amigable' | 'formal' | 'estricto';
   theme: 'light' | 'dark' | 'system';
   onboarding_done: boolean;
-  monthly_income: number | null;
-  budget_alert_threshold: number;
-  whatsapp_phone: string | null;
+  income_monthly: number | null;
+  budget_alert_pct: number;
+  wa_phone: string | null;
+  wa_verified?: boolean;
+  rollover_enabled?: boolean;
+  plan: 'free' | 'active' | 'expired';
   created_at: string;
-  updated_at: string;
+  updated_at?: string;
 }
 
 export interface Transaction {

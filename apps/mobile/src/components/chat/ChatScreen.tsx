@@ -10,7 +10,6 @@ import {
   ScrollView,
   Animated,
   Keyboard,
-  KeyboardAvoidingView,
   Alert,
   StyleSheet,
 } from 'react-native';
@@ -173,7 +172,7 @@ export function ChatScreen({ visible, onClose, initialMessage }: ChatScreenProps
 
   const [inputText, setInputText] = useState('');
   const [pendingImage, setPendingImage] = useState<{ uri: string; base64: string; mime: string } | null>(null);
-  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const flatListRef = useRef<FlatList>(null);
   const slideAnim = useRef(new Animated.Value(900)).current;
   const { messages, isLoading, suggestions, sendMessage, clearChat } = useChat();
@@ -188,11 +187,13 @@ export function ChatScreen({ visible, onClose, initialMessage }: ChatScreenProps
     }
   }, [visible, slideAnim, initialMessage]);
 
+  // Single source of truth for keyboard insets — avoid stacking this with
+  // KeyboardAvoidingView, which on Android double-shifts content inside a Modal.
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-    const show = Keyboard.addListener(showEvent, () => setIsKeyboardVisible(true));
-    const hide = Keyboard.addListener(hideEvent, () => setIsKeyboardVisible(false));
+    const show = Keyboard.addListener(showEvent, (e) => setKeyboardHeight(e.endCoordinates?.height ?? 0));
+    const hide = Keyboard.addListener(hideEvent, () => setKeyboardHeight(0));
     return () => { show.remove(); hide.remove(); };
   }, []);
 
@@ -244,9 +245,9 @@ export function ChatScreen({ visible, onClose, initialMessage }: ChatScreenProps
   const canSend = (inputText.trim().length > 0 || !!pendingImage) && !isLoading;
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
       <View style={styles.overlay}>
-        <Animated.View style={[styles.sheet, { transform: [{ translateY: slideAnim }] }]}>
+        <Animated.View style={[styles.sheet, { transform: [{ translateY: slideAnim }], paddingBottom: keyboardHeight }]}>
 
           {/* Handle */}
           <View style={styles.handle}>
@@ -268,11 +269,7 @@ export function ChatScreen({ visible, onClose, initialMessage }: ChatScreenProps
           </View>
 
           {/* Messages + input */}
-          <KeyboardAvoidingView
-            style={{ flex: 1 }}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            keyboardVerticalOffset={0}
-          >
+          <View style={{ flex: 1 }}>
             <FlatList
               ref={flatListRef}
               data={messages}
@@ -310,7 +307,7 @@ export function ChatScreen({ visible, onClose, initialMessage }: ChatScreenProps
               >
                 {suggestions.map((s) => (
                   <TouchableOpacity key={s} onPress={() => sendMessage(s)} style={styles.chip}>
-                    <Text style={styles.chipText}>{s}</Text>
+                    <Text style={styles.chipText} numberOfLines={1}>{s}</Text>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
@@ -328,7 +325,7 @@ export function ChatScreen({ visible, onClose, initialMessage }: ChatScreenProps
             ) : null}
 
             {/* Input bar */}
-            <View style={[styles.inputBar, { paddingBottom: isKeyboardVisible ? 10 : insets.bottom + 10 }]}>
+            <View style={[styles.inputBar, { paddingBottom: keyboardHeight > 0 ? 10 : insets.bottom + 10 }]}>
               <View style={styles.inputPill}>
                 <TextInput
                   style={styles.textInput}
@@ -353,7 +350,7 @@ export function ChatScreen({ visible, onClose, initialMessage }: ChatScreenProps
               </TouchableOpacity>
             </View>
 
-          </KeyboardAvoidingView>
+          </View>
         </Animated.View>
       </View>
     </Modal>

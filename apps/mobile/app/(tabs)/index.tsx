@@ -762,9 +762,7 @@ export default function HomeScreen() {
       <RecapModal
         visible={showRecap}
         onClose={() => setShowRecap(false)}
-        userName={firstName || 'Valentina'}
-        income={summary?.income}
-        expenses={summary?.expenses}
+        userName={firstName || undefined}
       />
     </View>
   );

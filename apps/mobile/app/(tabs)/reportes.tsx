@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
+import { ChatScreen } from '@/components/chat/ChatScreen';
 import {
   Animated,
   View,
@@ -653,6 +654,8 @@ export default function ReportesScreen() {
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const [activeTab, setActiveTab] = useState<ReportTab>('presupuestos');
+  const [showChat, setShowChat] = useState(false);
+  const [chatInitialMsg, setChatInitialMsg] = useState('');
   const month = currentMonth();
   const { data: budgets, isLoading: budgetsLoading } = useBudgets(month);
   const { data: goals, isLoading: goalsLoading } = useGoals();
@@ -681,6 +684,12 @@ export default function ReportesScreen() {
           })}
         </View>
       </View>
+
+      <ChatScreen
+        visible={showChat}
+        onClose={() => setShowChat(false)}
+        initialMessage={chatInitialMsg}
+      />
 
       <ScrollView
         style={{ flex: 1 }}
@@ -717,7 +726,10 @@ export default function ReportesScreen() {
           ) : (
             <>
               {/* Dashed "Nueva meta" button */}
-              <TouchableOpacity style={{ padding: 13, borderRadius: 16, marginBottom: 16, borderWidth: 2, borderStyle: 'dashed', borderColor: colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              <TouchableOpacity
+                onPress={() => { setChatInitialMsg('Quiero crear una nueva meta de ahorro'); setShowChat(true); }}
+                style={{ padding: 13, borderRadius: 16, marginBottom: 16, borderWidth: 2, borderStyle: 'dashed', borderColor: colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+              >
                 <Ionicons name="add" size={16} color={colors.primary} />
                 <Text style={{ fontSize: 14, fontWeight: '600', color: colors.primary }}>Nueva meta de ahorro</Text>
               </TouchableOpacity>

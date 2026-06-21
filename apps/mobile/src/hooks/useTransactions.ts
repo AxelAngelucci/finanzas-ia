@@ -53,7 +53,7 @@ export function useTransactions(filters: TransactionFilters = {}) {
       if (filters.type) params.type = filters.type;
       if (filters.category) params.category = filters.category;
       if (filters.month) params.month = filters.month;
-      if (filters.search) params.search = filters.search;
+      if (filters.search) params.q = filters.search;
 
       const res = await api.get<BackendPaginatedResponse<Transaction>>('/transactions', { params });
       // Normalize to PaginatedResponse shape
