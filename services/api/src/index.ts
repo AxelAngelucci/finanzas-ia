@@ -13,6 +13,9 @@ import goalRoutes from './routes/goals';
 import aiRoutes from './routes/ai';
 import commitmentRoutes from './routes/commitments';
 import whatsappRoutes from './routes/whatsapp';
+import revenuecatRoutes from './routes/revenuecat';
+import stripeWebhookRoutes from './routes/stripe-webhook';
+import billingRoutes from './routes/billing';
 import { errorHandler } from './middleware/error';
 
 const app: import('express').Application = express();
@@ -23,6 +26,8 @@ app.use(cors({ origin: process.env.CORS_ORIGIN ?? '*', credentials: true }));
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 // Webhook de Twilio requiere form-encoded y debe registrarse antes del json() global
 app.use('/webhook/whatsapp', express.urlencoded({ extended: false }), whatsappRoutes);
+// Webhook de Stripe requiere el body crudo para verificar la firma
+app.use('/webhook/stripe', express.raw({ type: 'application/json' }), stripeWebhookRoutes);
 
 app.use(express.json({ limit: '2mb' }));
 
@@ -38,6 +43,8 @@ app.use('/v1/budgets', budgetRoutes);
 app.use('/v1/goals', goalRoutes);
 app.use('/v1/ai', aiRoutes);
 app.use('/v1/commitments', commitmentRoutes);
+app.use('/webhook/revenuecat', revenuecatRoutes);
+app.use('/v1/billing', billingRoutes);
 
 app.use(errorHandler);
 
