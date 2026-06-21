@@ -14,6 +14,12 @@ enum AgentTone {
   estricto
 }
 
+enum Plan {
+  free
+  active
+  expired
+}
+
 enum Theme {
   light
   dark
@@ -58,6 +64,10 @@ model User {
   wa_verified       Boolean       @default(false)
   wa_link_token     String?
   wa_link_token_exp DateTime?
+  plan              Plan          @default(free)
+  trial_ends_at     DateTime?
+  revenuecat_id     String?
+  stripe_customer_id String?      @unique
   agent_tone        AgentTone     @default(amigable)
   theme             Theme         @default(system)
   budget_alert_pct  Int           @default(80)
