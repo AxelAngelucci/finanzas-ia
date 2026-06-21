@@ -1,10 +1,9 @@
 import { Router, Request, Response } from 'express';
-import Stripe from 'stripe';
 import { prisma } from '../db/client';
 import { normalizeArgentinePhone } from '../lib/phone';
+import { getStripe } from '../lib/stripe';
 
 const router: import('express').Router = Router();
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? '');
 
 const WEB_URL = process.env.WEB_URL ?? 'http://localhost:3000';
 
@@ -44,7 +43,7 @@ router.post('/checkout-session', async (req: Request, res: Response) => {
   // previo de Stripe) — no le regalamos otros 14 días gratis.
   const grantTrial = isSubscription && !existingUser;
 
-  const session = await stripe.checkout.sessions.create({
+  const session = await getStripe().checkout.sessions.create({
     mode: isSubscription ? 'subscription' : 'payment',
     line_items: [{ price: priceId, quantity: 1 }],
     metadata: { phone: fullPhone },

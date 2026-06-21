@@ -1,9 +1,9 @@
 import { Router, Request, Response } from 'express';
 import Stripe from 'stripe';
 import { prisma } from '../db/client';
+import { getStripe } from '../lib/stripe';
 
 const router: import('express').Router = Router();
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? '');
 const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET ?? '';
 
 router.post('/', async (req: Request, res: Response) => {
@@ -11,7 +11,7 @@ router.post('/', async (req: Request, res: Response) => {
 
   let event: Stripe.Event;
   try {
-    event = stripe.webhooks.constructEvent(req.body as Buffer, signature as string, WEBHOOK_SECRET);
+    event = getStripe().webhooks.constructEvent(req.body as Buffer, signature as string, WEBHOOK_SECRET);
   } catch (err) {
     console.error('[Stripe] Firma inválida:', err);
     res.status(400).json({ error: 'Invalid signature' });
