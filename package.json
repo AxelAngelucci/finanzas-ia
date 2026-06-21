@@ -8,6 +8,7 @@
   ],
   "scripts": {
     "mobile": "pnpm --filter mobile start",
+    "web": "pnpm --filter web dev",
     "api": "pnpm --filter api dev",
     "ai": "cd services/ai && uvicorn main:app --reload --port 8000",
     "dev": "concurrently \"pnpm api\" \"pnpm ai\"",
